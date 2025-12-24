@@ -1,7 +1,7 @@
 {
-  "name": "QR Scanner Arca",
-  "short_name": "QR Arca Scanner",
-  "description": "Escanea QR ARCA y muestra datos de factura",
+  "name": "QR Scanner ",
+  "short_name": "QR Scanner",
+  "description": "Escanea QR  y muestra datos",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",
