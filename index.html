@@ -8,7 +8,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <meta name="theme-color" content="#198754">
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="manifest.json?v=1.1.6">
   <title>Validador QR Scanner</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="assets/plugins/qrCode.min.js?v=1.1.3"></script>
@@ -18,11 +18,12 @@
       width: 100%;
       max-width: 400px;
       height: 120px;
-      margin: 0 auto;
+      margin: 10px auto;
       background: #000;
       border-radius: 8px;
       overflow: hidden;
       position: relative;
+      display: none;
     }
 
     #qr-canvas {
@@ -67,294 +68,322 @@
       margin: 2px;
       font-size: 0.8rem;
     }
+
+    .app-wrapper {
+      max-width: 400px;
+      width: 95%;
+      max-height: 90vh;
+      margin: 5vh auto;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 15px;
+      background: #fff;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    body {
+      background: #f8f9fa;
+    }
   </style>
 </head>
 
 <body>
-  <div class="container mt-4">
-    <div class="row justify-content-center">
-      <div class="col-md-6">
-        <h5 class="text-center mb-3">Escanear código QR</h5>
+  <div class="app-wrapper">
+    <div class="container mt-4">
+      <div class="row justify-content-center">
+        <div class="col-md-6">
+          <h5 class="text-center mb-3">Escanear código QR</h5>
 
-        <div id="cameraSelector" class="camera-selector">
-          <label class="form-label">Seleccionar cámara:</label>
-          <div id="cameraList" class="d-flex flex-wrap"></div>
-        </div>
+          <div id="cameraSelector" class="camera-selector">
+            <label class="form-label">Seleccionar cámara:</label>
+            <div id="cameraList" class="d-flex flex-wrap"></div>
+          </div>
 
-        <div class="canvas-container">
-          <canvas hidden id="qr-canvas"></canvas>
-          <div hidden id="scanner-line" class="scanner-line"></div>
-        </div>
+          <div id="canvas-container" class="canvas-container">
+            <canvas hidden id="qr-canvas"></canvas>
+            <div hidden id="scanner-line" class="scanner-line"></div>
+          </div>
 
-        <div class="text-center">
-          <a id="btn-scan-qr" href="#">
-            <img src="./assets/icons/qr.png" class="img-fluid" width="115" height="75">
-          </a>
-        </div>
+          <div class="text-center">
+            <a id="btn-scan-qr" href="#">
+              <img src="./assets/icons/qr.png" class="img-fluid" width="115" height="75">
+            </a>
+          </div>
 
-        <div class="text-center mt-3">
-          <button class="btn btn-success btn-sm" onclick="encenderCamara()">Escanear QR</button>
-          <button class="btn btn-danger btn-sm" onclick="cerrarCamara()">Apagar cámara</button>
-          <button id="btnInstall" class="btn btn-primary btn-sm" style="display:none">Instalar App</button>
+          <div class="text-center mt-3">
+            <button class="btn btn-success btn-sm" onclick="encenderCamara()">Escanear QR</button>
+            <button class="btn btn-danger btn-sm" onclick="cerrarCamara()">Apagar cámara</button>
+            <button id="btnInstall" class="btn btn-primary btn-sm" style="display:none">Instalar App</button>
+          </div>
         </div>
       </div>
+      <div class="mt-auto">
+        <footer class="text-center mt-3">version 1.1.6</footer>
+      </div>
     </div>
-  </div>
-  <footer>version 1.1.3</footer>
 
 
-  <script>
-    const video = document.createElement("video");
-    const canvasElement = document.getElementById("qr-canvas");
-    const scannerLine = document.getElementById("scanner-line");
-    const canvas = canvasElement.getContext("2d", { willReadFrequently: true });
-    const btnScanQR = document.getElementById("btn-scan-qr");
+    <script>
+      const video = document.createElement("video");
+      const canvasElement = document.getElementById("qr-canvas");
+      const scannerLine = document.getElementById("scanner-line");
+      const canvas = canvasElement.getContext("2d", { willReadFrequently: true });
+      const canvasContainer = document.getElementById("canvas-container");
+      const btnScanQR = document.getElementById("btn-scan-qr");
 
-    let scanning = false;
-    let animationFrameId = null;
-    let scanTimeoutId = null;
-    let videoStream = null;
-    let cameras = [];
-    let currentCameraId = null;
-    let deferredPrompt;
+      let scanning = false;
+      let animationFrameId = null;
+      let scanTimeoutId = null;
+      let videoStream = null;
+      let cameras = [];
+      let currentCameraId = null;
+      let deferredPrompt;
 
-    const SCAN_CONFIG = {
-      scanInterval: 50,
-      maxScanTime: 30000,
-    };
+      const SCAN_CONFIG = {
+        scanInterval: 50,
+        maxScanTime: 30000,
+      };
 
-    async function listarCamaras() {
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        cameras = devices.filter(device => device.kind === 'videoinput');
+      async function listarCamaras() {
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          cameras = devices.filter(device => device.kind === 'videoinput');
 
-        console.log('Cámaras encontradas:', cameras);
+          console.log('Cámaras encontradas:', cameras);
 
-        if (cameras.length > 1) {
-          mostrarSelectorCamaras();
-        }
-
-        return cameras;
-      } catch (error) {
-        console.error('Error al listar cámaras:', error);
-        return [];
-      }
-    }
-
-    function mostrarSelectorCamaras() {
-      const cameraList = document.getElementById('cameraList');
-      const cameraSelector = document.getElementById('cameraSelector');
-
-      cameraList.innerHTML = '';
-      cameraSelector.style.display = 'block';
-
-      cameras.forEach((camera, index) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'btn btn-outline-primary btn-sm camera-btn';
-        button.textContent = `Cámara ${index + 1}`;
-        button.onclick = (e) => cambiarCamara(camera.deviceId, e);
-
-        if (camera.deviceId === currentCameraId) {
-          button.classList.add('active');
-        }
-
-        cameraList.appendChild(button);
-      });
-    }
-
-    async function cambiarCamara(deviceId, event) {
-      if (!deviceId) return;
-
-      try {
-        if (videoStream) {
-          videoStream.getTracks().forEach(track => track.stop());
-        }
-        detenerProcesos();
-
-        const constraints = {
-          video: {
-            deviceId: { exact: deviceId },
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
+          if (cameras.length > 1) {
+            mostrarSelectorCamaras();
           }
-        };
 
-        videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-        currentCameraId = deviceId;
+          return cameras;
+        } catch (error) {
+          console.error('Error al listar cámaras:', error);
+          return [];
+        }
+      }
 
-        document.querySelectorAll('.camera-btn').forEach(btn => {
-          btn.classList.remove('active');
+      function mostrarSelectorCamaras() {
+        const cameraList = document.getElementById('cameraList');
+        const cameraSelector = document.getElementById('cameraSelector');
+
+        cameraList.innerHTML = '';
+        cameraSelector.style.display = 'block';
+
+        cameras.forEach((camera, index) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'btn btn-outline-primary btn-sm camera-btn';
+          button.textContent = `Cámara ${index + 1}`;
+          button.onclick = (e) => cambiarCamara(camera.deviceId, e);
+
+          if (camera.deviceId === currentCameraId) {
+            button.classList.add('active');
+          }
+
+          cameraList.appendChild(button);
         });
+      }
 
-        if (event && event.target) {
-          event.target.classList.add('active');
+      async function cambiarCamara(deviceId, event) {
+        if (!deviceId) return;
+
+        try {
+          detenerProcesos();
+          if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+            videoStream = null;
+          }
+
+          const constraints = {
+            video: {
+              deviceId: { exact: deviceId },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          };
+
+          videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+          currentCameraId = deviceId;
+
+          document.querySelectorAll('.camera-btn').forEach(btn => {
+            btn.classList.remove('active');
+          });
+
+          if (event && event.target) {
+            event.target.classList.add('active');
+          }
+
+          video.srcObject = videoStream;
+          video.setAttribute("playsinline", "true");
+          await video.play();
+
+          scanning = true;
+          canvasContainer.style.display = 'block';
+          canvasElement.hidden = false;
+          scannerLine.hidden = false;
+          iniciarEscaneo();
+        } catch (error) {
+          console.error('Error al cambiar cámara:', error);
+          alert('No se pudo cambiar a esta cámara: ' + error.message);
+        }
+      }
+
+      async function encenderCamara() {
+        try {
+          detenerProcesos();
+          if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+            videoStream = null;
+          }
+
+          await listarCamaras();
+
+          let constraints;
+
+          if (currentCameraId) {
+            constraints = {
+              video: {
+                deviceId: { exact: currentCameraId },
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              }
+            };
+          } else {
+            constraints = {
+              video: {
+                facingMode: "environment",
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              }
+            };
+          }
+
+          videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+          const videoTrack = videoStream.getVideoTracks()[0];
+          currentCameraId = videoTrack.getSettings().deviceId;
+
+          scanning = true;
+          canvasContainer.style.display = 'block';
+          canvasElement.hidden = false;
+          scannerLine.hidden = false;
+          btnScanQR.style.display = 'none';
+
+          video.srcObject = videoStream;
+          video.setAttribute("playsinline", "true");
+          await video.play();
+
+          iniciarEscaneo();
+
+        } catch (error) {
+          console.error("Error al acceder a la cámara:", error);
+
+          try {
+            videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            scanning = true;
+            canvasElement.hidden = false;
+            scannerLine.hidden = false;
+            btnScanQR.style.display = 'none';
+            video.srcObject = videoStream;
+            await video.play();
+            iniciarEscaneo();
+          } catch (fallbackError) {
+            alert("No se pudo acceder a la cámara: " + fallbackError.message);
+          }
+        }
+      }
+
+      function tick() {
+        if (!scanning || video.readyState !== video.HAVE_ENOUGH_DATA) {
+          animationFrameId = requestAnimationFrame(tick);
+          return;
         }
 
-        video.srcObject = videoStream;
-        video.setAttribute("playsinline", "true");
-        await video.play();
+        canvasElement.width = video.videoWidth;
+        canvasElement.height = video.videoHeight;
+        canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
 
-        scanning = true;
-        canvasElement.hidden = false;
-        scannerLine.hidden = false;
-        iniciarEscaneo();
-      } catch (error) {
-        console.error('Error al cambiar cámara:', error);
-        alert('No se pudo cambiar a esta cámara: ' + error.message);
+        if (scanning) {
+          animationFrameId = requestAnimationFrame(tick);
+        }
       }
-    }
 
-    async function encenderCamara() {
-      try {
-        detenerProcesos();
+      function scan() {
+        if (!scanning) return;
+
+        try {
+          qrcode.decode();
+        } catch (e) {
+          scanTimeoutId = setTimeout(scan, SCAN_CONFIG.scanInterval);
+        }
+      }
+
+      function iniciarEscaneo() {
+        tick();
+        scan();
+
+        setTimeout(() => {
+          if (scanning) {
+            console.warn("Escaneo automático detenido por timeout");
+            cerrarCamara();
+          }
+        }, SCAN_CONFIG.maxScanTime);
+      }
+
+      function detenerProcesos() {
+        scanning = false;
+        if (canvasContainer) canvasContainer.style.display = 'none';
+        if (scannerLine) scannerLine.hidden = true;
+
+        if (animationFrameId) {
+          cancelAnimationFrame(animationFrameId);
+          animationFrameId = null;
+        }
+
+        if (scanTimeoutId) {
+          clearTimeout(scanTimeoutId);
+          scanTimeoutId = null;
+        }
+      }
+
+      function cerrarCamara() {
+        scanning = false;
+
         if (videoStream) {
           videoStream.getTracks().forEach(track => track.stop());
           videoStream = null;
         }
 
-        await listarCamaras();
+        video.srcObject = null;
+        canvasContainer.style.display = 'none';
+        canvasElement.hidden = true;
+        scannerLine.hidden = true;
+        btnScanQR.style.display = 'block';
 
-        let constraints;
-
-        if (currentCameraId) {
-          constraints = {
-            video: {
-              deviceId: { exact: currentCameraId },
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            }
-          };
-        } else {
-          constraints = {
-            video: {
-              facingMode: "environment",
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            }
-          };
-        }
-
-        videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-
-        const videoTrack = videoStream.getVideoTracks()[0];
-        currentCameraId = videoTrack.getSettings().deviceId;
-
-        scanning = true;
-        canvasElement.hidden = false;
-        scannerLine.hidden = false;
-        btnScanQR.style.display = 'none';
-
-        video.srcObject = videoStream;
-        video.setAttribute("playsinline", "true");
-        await video.play();
-
-        iniciarEscaneo();
-
-      } catch (error) {
-        console.error("Error al acceder a la cámara:", error);
-
-        try {
-          videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-          scanning = true;
-          canvasElement.hidden = false;
-          scannerLine.hidden = false;
-          btnScanQR.style.display = 'none';
-          video.srcObject = videoStream;
-          await video.play();
-          iniciarEscaneo();
-        } catch (fallbackError) {
-          alert("No se pudo acceder a la cámara: " + fallbackError.message);
-        }
-      }
-    }
-
-    function tick() {
-      if (!scanning || video.readyState !== video.HAVE_ENOUGH_DATA) {
-        animationFrameId = requestAnimationFrame(tick);
-        return;
+        document.getElementById('cameraSelector').style.display = 'none';
       }
 
-      canvasElement.width = video.videoWidth;
-      canvasElement.height = video.videoHeight;
-      canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+      qrcode.callback = (respuesta) => {
+        if (respuesta && scanning) {
+          scanning = false;
+          if (scannerLine) scannerLine.hidden = true;
 
-      if (scanning) {
-        animationFrameId = requestAnimationFrame(tick);
-      }
-    }
+          if (respuesta.includes('https://www.arca.gob.ar/fe/qr/') ||
+            respuesta.includes('https://fe.arca.gob.ar/qr/') ||
+            respuesta.includes('https://www.afip.gob.ar/fe/qr/')) {
+            try {
+              const url = new URL(respuesta);
+              const parametroP = url.searchParams.get('p');
 
-    function scan() {
-      if (!scanning) return;
+              if (parametroP) {
+                const datosDecodificados = JSON.parse(atob(parametroP));
 
-      try {
-        qrcode.decode();
-      } catch (e) {
-        scanTimeoutId = setTimeout(scan, SCAN_CONFIG.scanInterval);
-      }
-    }
-
-    function iniciarEscaneo() {
-      tick();
-      scan();
-
-      setTimeout(() => {
-        if (scanning) {
-          console.warn("Escaneo automático detenido por timeout");
-          cerrarCamara();
-        }
-      }, SCAN_CONFIG.maxScanTime);
-    }
-
-    function detenerProcesos() {
-      scanning = false;
-      if (scannerLine) scannerLine.hidden = true;
-
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-      }
-
-      if (scanTimeoutId) {
-        clearTimeout(scanTimeoutId);
-        scanTimeoutId = null;
-      }
-    }
-
-    function cerrarCamara() {
-      scanning = false;
-
-      if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-        videoStream = null;
-      }
-
-      video.srcObject = null;
-      canvasElement.hidden = true;
-      scannerLine.hidden = true;
-      btnScanQR.style.display = 'block';
-
-      document.getElementById('cameraSelector').style.display = 'none';
-    }
-
-    qrcode.callback = (respuesta) => {
-      if (respuesta && scanning) {
-        scanning = false;
-        if (scannerLine) scannerLine.hidden = true;
-
-        if (respuesta.includes('https://www.arca.gob.ar/fe/qr/') ||
-          respuesta.includes('https://fe.arca.gob.ar/qr/') ||
-          respuesta.includes('https://www.afip.gob.ar/fe/qr/')) {
-          try {
-            const url = new URL(respuesta);
-            const parametroP = url.searchParams.get('p');
-
-            if (parametroP) {
-              const datosDecodificados = JSON.parse(atob(parametroP));
-
-              Swal.fire({
-                title: 'QR Válido',
-                html: `
+                Swal.fire({
+                  title: 'QR Válido',
+                  html: `
       <div style="background: #f5f5f5; padding: 5px; border-radius: 5px; text-align:left;">
         <p>Factura: ${datosDecodificados.ptoVta.toString().padStart(5, '0')} - ${datosDecodificados.nroCmp.toString().padStart(8, '0')}</p>
         <p>CAE: ${datosDecodificados.codAut}</p>
@@ -363,48 +392,48 @@
         <p>Monto: $ ${datosDecodificados.importe}</p>
       </div>
                 `,
-                icon: 'success'
-              });
-            } else {
-              throw new Error('No se encontró parámetro p');
+                  icon: 'success'
+                });
+              } else {
+                throw new Error('No se encontró parámetro p');
+              }
+            } catch (error) {
+              Swal.fire('Error', 'QR inválido: ' + error.message, 'error');
             }
-          } catch (error) {
-            Swal.fire('Error', 'QR inválido: ' + error.message, 'error');
+          } else {
+            Swal.fire('Error', 'El código QR no es reconocido', 'error');
           }
-        } else {
-          Swal.fire('Error', 'El código QR no es reconocido', 'error');
         }
-      }
-    };
+      };
 
-    window.addEventListener('load', function () {
-      console.log('Aplicación cargada');
+      window.addEventListener('load', function () {
+        console.log('Aplicación cargada');
 
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('Service Worker registrado correctamente', reg))
-          .catch(err => console.warn('Error al registrar el Service Worker', err));
-      }
-    });
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('Service Worker registrado correctamente', reg))
+            .catch(err => console.warn('Error al registrar el Service Worker', err));
+        }
+      });
 
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      const btnInstall = document.getElementById('btnInstall');
-      btnInstall.style.display = 'inline-block';
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        const btnInstall = document.getElementById('btnInstall');
+        btnInstall.style.display = 'inline-block';
 
-      btnInstall.addEventListener('click', (e) => {
-        btnInstall.style.display = 'none';
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((choiceResult) => {
-          if (choiceResult.outcome === 'accepted') {
-            console.log('Usuario aceptó instalar');
-          }
-          deferredPrompt = null;
+        btnInstall.addEventListener('click', (e) => {
+          btnInstall.style.display = 'none';
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('Usuario aceptó instalar');
+            }
+            deferredPrompt = null;
+          });
         });
       });
-    });
-  </script>
+    </script>
 </body>
 
 </html>
