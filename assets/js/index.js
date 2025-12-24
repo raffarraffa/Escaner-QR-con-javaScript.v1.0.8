@@ -1,5 +1,5 @@
 // ========== DEBUG INICIAL ==========
-console.log('🚀 index.js cargado correctamente');
+console.log('Cargado correctamente');
 debugLog('index.js inicializado');
 
 // ========== VARIABLES GLOBALES ==========
@@ -43,12 +43,12 @@ const SCAN_CONFIG = {
 const detenerProcesos = () => {
   debugLog('Deteniendo procesos...');
   scanning = false;
-  
+
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId);
     animationFrameId = null;
   }
-  
+
   if (scanTimeoutId) {
     clearTimeout(scanTimeoutId);
     scanTimeoutId = null;
@@ -67,7 +67,7 @@ const mostrarError = (mensaje) => {
 // ========== FUNCIÓN PRINCIPAL ENCENDER CÁMARA ==========
 const encenderCamara = async () => {
   debugLog('🔴 Botón ESCANEAR QR clickeado');
-  
+
   try {
     // 1. LIMPIAR ESTADO ANTERIOR
     detenerProcesos();
@@ -90,13 +90,13 @@ const encenderCamara = async () => {
     // 3. OBTENER CÁMARA
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     videoStream = stream;
-    
+
     debugLog('✅ Cámara obtenida exitosamente');
 
     // 4. CONFIGURAR VIDEO
     video.srcObject = stream;
     video.setAttribute("playsinline", "true");
-    
+
     // Esperar a que el video esté listo
     await new Promise((resolve, reject) => {
       video.onloadedmetadata = () => {
@@ -123,12 +123,12 @@ const encenderCamara = async () => {
   } catch (error) {
     debugLog('❌ Error: ' + error.message);
     console.error("Error al acceder a la cámara:", error);
-    
+
     // INTENTO DE FALLBACK
     try {
       debugLog('🔄 Intentando fallback básico...');
       const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
-      
+
       videoStream = fallbackStream;
       scanning = true;
       canvasElement.hidden = false;
@@ -137,7 +137,7 @@ const encenderCamara = async () => {
       await video.play();
       iniciarEscaneo();
       debugLog('✅ Fallback exitoso');
-      
+
     } catch (fallbackError) {
       debugLog('💥 Fallback falló: ' + fallbackError.message);
       mostrarError("No se pudo acceder a la cámara: " + fallbackError.message);
@@ -205,21 +205,21 @@ const cerrarCamara = () => {
 
   canvasElement.hidden = true;
   if (btnScanQR) btnScanQR.hidden = false;
-  
+
   debugLog('✅ Cámara cerrada');
 };
 
 // ========== CALLBACK QR ==========
 qrcode.callback = (respuesta) => {
   debugLog('📨 QR detectado: ' + (respuesta ? respuesta.substring(0, 50) + '...' : 'null'));
-  
+
   if (respuesta && scanning) {
     scanning = false;
 
-    // Verificar dominio ARCA
+    // Verificar dominio de factura
     if (respuesta.includes('https://www.arca.gob.ar/fe/qr/') ||
-        respuesta.includes('https://fe.arca.gob.ar/qr/') ||
-        respuesta.includes('https://www.afip.gob.ar/fe/qr/')) {
+      respuesta.includes('https://fe.arca.gob.ar/qr/') ||
+      respuesta.includes('https://www.afip.gob.ar/fe/qr/')) {
       try {
         const url = new URL(respuesta);
         parametroP = url.searchParams.get('p');
@@ -227,7 +227,7 @@ qrcode.callback = (respuesta) => {
         if (parametroP) {
           datosDecodificados = JSON.parse(atob(parametroP));
           debugLog('✅ QR válido decodificado');
-          
+
           Swal.fire({
             title: 'QR Válido',
             html: `
@@ -249,10 +249,10 @@ qrcode.callback = (respuesta) => {
         Swal.fire('Error', 'QR inválido: ' + error.message, 'error');
       }
     } else {
-      debugLog('❌ QR no es de ARCA');
-      Swal.fire('Error', 'El QR no es de ARCA', 'error');
+      debugLog('❌ QR no reconocido');
+      Swal.fire('Error', 'El código QR no es reconocido', 'error');
     }
-    
+
     cerrarCamara();
   }
 };
@@ -260,7 +260,7 @@ qrcode.callback = (respuesta) => {
 // ========== INICIALIZACIÓN ==========
 const inicializarEventos = () => {
   debugLog('🔧 Inicializando eventos...');
-  
+
   if (btnScanQR) {
     btnScanQR.addEventListener('click', encenderCamara);
     debugLog('✅ Evento click asignado a btnScanQR');
@@ -272,7 +272,7 @@ const inicializarEventos = () => {
 // CARGA DE LA PÁGINA
 window.addEventListener('load', () => {
   debugLog('📄 Página completamente cargada');
-  
+
   setTimeout(() => {
     inicializarEventos();
     debugLog('🏁 Inicialización completada');
