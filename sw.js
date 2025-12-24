@@ -1,4 +1,4 @@
-const CACHE_NAME = 'validador-qr-v2.2.0';
+const CACHE_NAME = 'validador-qr-v2.3.0';
 const ASSETS = [
   './',
   'index.html',
