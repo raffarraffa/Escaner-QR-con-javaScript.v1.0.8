@@ -1,14 +1,11 @@
-// ========== DEBUG INICIAL ==========
 console.log('Cargado correctamente');
 debugLog('index.js inicializado');
 
-// ========== VARIABLES GLOBALES ==========
 const video = document.createElement("video");
 const canvasElement = document.getElementById("qr-canvas");
 const canvas = canvasElement.getContext("2d", { willReadFrequently: true });
 const btnScanQR = document.getElementById("btn-scan-qr");
 
-// Estado de la aplicación
 let scanning = false;
 let animationFrameId = null;
 let scanTimeoutId = null;
@@ -16,11 +13,9 @@ let videoStream = null;
 let cameras = [];
 let currentCameraId = null;
 
-// Resultados escaneo
 let parametroP = null;
 let datosDecodificados = null;
 
-// ========== CONFIGURACIÓN ==========
 const SCAN_CONFIG = {
   scanInterval: 100,
   maxScanTime: 30000,
@@ -39,7 +34,6 @@ const SCAN_CONFIG = {
   }
 };
 
-// ========== FUNCIONES BÁSICAS ==========
 const detenerProcesos = () => {
   debugLog('Deteniendo procesos...');
   scanning = false;
@@ -64,19 +58,16 @@ const mostrarError = (mensaje) => {
   });
 };
 
-// ========== FUNCIÓN PRINCIPAL ENCENDER CÁMARA ==========
 const encenderCamara = async () => {
   debugLog('🔴 Botón ESCANEAR QR clickeado');
 
   try {
-    // 1. LIMPIAR ESTADO ANTERIOR
     detenerProcesos();
     if (videoStream) {
       videoStream.getTracks().forEach(track => track.stop());
       videoStream = null;
     }
 
-    // 2. CONFIGURACIÓN MÍNIMA Y SEGURA
     const constraints = {
       video: {
         facingMode: "environment",
@@ -87,17 +78,14 @@ const encenderCamara = async () => {
 
     debugLog('🎯 Solicitando cámara con constraints...');
 
-    // 3. OBTENER CÁMARA
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     videoStream = stream;
 
     debugLog('✅ Cámara obtenida exitosamente');
 
-    // 4. CONFIGURAR VIDEO
     video.srcObject = stream;
     video.setAttribute("playsinline", "true");
 
-    // Esperar a que el video esté listo
     await new Promise((resolve, reject) => {
       video.onloadedmetadata = () => {
         debugLog('📹 Video metadata cargada');
@@ -110,21 +98,18 @@ const encenderCamara = async () => {
     await video.play();
     debugLog('🎥 Video reproduciéndose');
 
-    // 5. CONFIGURAR INTERFAZ
     scanning = true;
     canvasElement.hidden = false;
     if (btnScanQR) btnScanQR.hidden = true;
 
     debugLog('🔄 Iniciando escaneo...');
 
-    // 6. INICIAR PROCESOS DE ESCANEO
     iniciarEscaneo();
 
   } catch (error) {
     debugLog('❌ Error: ' + error.message);
     console.error("Error al acceder a la cámara:", error);
 
-    // INTENTO DE FALLBACK
     try {
       debugLog('🔄 Intentando fallback básico...');
       const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -145,18 +130,15 @@ const encenderCamara = async () => {
   }
 };
 
-// ========== FUNCIONES DE ESCANEO ==========
 const tick = () => {
   if (!scanning || video.readyState !== video.HAVE_ENOUGH_DATA) {
     animationFrameId = requestAnimationFrame(tick);
     return;
   }
 
-  // Configurar canvas con dimensiones del video
   canvasElement.width = video.videoWidth;
   canvasElement.height = video.videoHeight;
 
-  // Dibujar video en canvas
   canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
 
   if (scanning) {
@@ -179,7 +161,6 @@ const iniciarEscaneo = () => {
   tick();
   scan();
 
-  // Timeout de seguridad
   setTimeout(() => {
     if (scanning) {
       debugLog('⏰ Timeout de escaneo alcanzado');
@@ -188,7 +169,6 @@ const iniciarEscaneo = () => {
   }, SCAN_CONFIG.maxScanTime);
 };
 
-// ========== CERRAR CÁMARA ==========
 const cerrarCamara = () => {
   debugLog('🔴 Cerrando cámara...');
   scanning = false;
@@ -209,14 +189,12 @@ const cerrarCamara = () => {
   debugLog('✅ Cámara cerrada');
 };
 
-// ========== CALLBACK QR ==========
 qrcode.callback = (respuesta) => {
   debugLog('📨 QR detectado: ' + (respuesta ? respuesta.substring(0, 50) + '...' : 'null'));
 
   if (respuesta && scanning) {
     scanning = false;
 
-    // Verificar dominio de factura
     if (respuesta.includes('https://www.arca.gob.ar/fe/qr/') ||
       respuesta.includes('https://fe.arca.gob.ar/qr/') ||
       respuesta.includes('https://www.afip.gob.ar/fe/qr/')) {
@@ -257,7 +235,6 @@ qrcode.callback = (respuesta) => {
   }
 };
 
-// ========== INICIALIZACIÓN ==========
 const inicializarEventos = () => {
   debugLog('🔧 Inicializando eventos...');
 
@@ -269,7 +246,6 @@ const inicializarEventos = () => {
   }
 };
 
-// CARGA DE LA PÁGINA
 window.addEventListener('load', () => {
   debugLog('📄 Página completamente cargada');
 
@@ -279,7 +255,6 @@ window.addEventListener('load', () => {
   }, 1000);
 });
 
-// LIMPIEZA
 window.addEventListener('beforeunload', cerrarCamara);
 
 document.addEventListener('visibilitychange', () => {
@@ -290,7 +265,6 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-// ========== FUNCIONES GLOBALES ==========
 window.encenderCamara = encenderCamara;
 window.cerrarCamara = cerrarCamara;
 

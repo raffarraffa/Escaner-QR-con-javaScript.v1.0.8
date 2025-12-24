@@ -1,10 +1,12 @@
-const CACHE_NAME = 'validador-qr-v1.1.2';
+const CACHE_NAME = 'validador-qr-v1.1.3';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './assets/plugins/qrCode.min.js',
-  './assets/icons/qr.png'
+  './assets/icons/qr.png',
+  './assets/icons/pwa-192x192.png',
+  './assets/icons/pwa-512x512.png'
 ];
 
 self.addEventListener('install', (event) => {

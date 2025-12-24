@@ -51,7 +51,7 @@ self.addEventListener('fetch', (event) => {
 
   if (PRECACHE_URLS.includes(url.pathname) || url.origin === location.origin) {
     event.respondWith(
-      caches.match(event.request).then((cached) => cached || fetch(event.request).then((res) => {        
+      caches.match(event.request).then((cached) => cached || fetch(event.request).then((res) => {
         const r = res.clone();
         caches.open(CACHE_NAME).then(c => c.put(event.request, r));
         return res;
@@ -60,7 +60,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Para terceros o APIs: network-first con fallback a cache
   event.respondWith(
     fetch(event.request).then((res) => {
       const copy = res.clone();
