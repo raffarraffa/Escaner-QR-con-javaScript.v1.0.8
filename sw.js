@@ -1,12 +1,12 @@
-const CACHE_NAME = 'validador-qr-v2.5.0';
+const CACHE_NAME = 'validador-qr-v3.1.0';
 const ASSETS = [
   './',
   'index.html',
   'manifest.json',
-  'assets/plugins/qrCode.min.js',
   'assets/icons/qr.png',
   'assets/icons/pwa-192x192.png',
-  'assets/icons/pwa-515x512.png'
+  'assets/icons/pwa-515x512.png',
+  'https://unpkg.com/html5-qrcode'
 ];
 
 self.addEventListener('install', (event) => {
