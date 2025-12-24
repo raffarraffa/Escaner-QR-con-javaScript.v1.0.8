@@ -1,13 +1,12 @@
-const CACHE_NAME = 'qr-scanner-v8';
+const CACHE_NAME = 'qr-scanner-v1.0.8';
 const PRECACHE_URLS = [
-  '/', 
+  '/',
   '/index.html',
   '/assets/js/index.js',
   '/assets/plugins/qrCode.min.js',
   '/assets/sonido.mp3',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css',
   'https://cdn.jsdelivr.net/npm/sweetalert2@11'
-  // agregá aquí otros assets estáticos que quieras precachear
 ];
 
 self.addEventListener('install', (event) => {
@@ -31,15 +30,14 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Estrategia: cache-first para archivos precacheados, network-first para API
+
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Si es navegación (document), intentar red a network-first luego fallback a cache
+
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).then((res) => {
-        // actualiza cache con nueva página
         const copy = res.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
         return res;
@@ -50,11 +48,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Recursos locales: cache-first
+
   if (PRECACHE_URLS.includes(url.pathname) || url.origin === location.origin) {
     event.respondWith(
-      caches.match(event.request).then((cached) => cached || fetch(event.request).then((res) => {
-        // guardar en cache runtime
+      caches.match(event.request).then((cached) => cached || fetch(event.request).then((res) => {        
         const r = res.clone();
         caches.open(CACHE_NAME).then(c => c.put(event.request, r));
         return res;
