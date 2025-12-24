@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta name="theme-color" content="#198754">
+  <title>Scanner DNI & QR Universal</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
+  <style>
+    .scanner-wrapper {
+      width: 100%;
+      max-width: 500px;
+      margin: 10px auto;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      background: #000;
+      display: none;
+      border: 3px solid #198754;
+    }
+
+    #video {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .app-wrapper {
+      max-width: 500px;
+      width: 95%;
+      margin: 2vh auto;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 15px;
+      background: #fff;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    body {
+      background: #f8f9fa;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .status-badge {
+      font-size: 0.8rem;
+      padding: 6px 12px;
+      border-radius: 20px;
+      margin-top: 10px;
+      display: inline-block;
+      font-weight: bold;
+    }
+
+    .instruction-text {
+      font-size: 0.9rem;
+      color: #444;
+      margin: 15px 0;
+      font-weight: 500;
+    }
+
+    .dni-data, .qr-data {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 10px;
+      text-align: left;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      border: 1px solid #dee2e6;
+      margin-top: 10px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .dni-data .field {
+      margin-bottom: 8px;
+      padding: 8px;
+      background: white;
+      border-radius: 5px;
+      border-left: 3px solid #198754;
+    }
+
+    .dni-data .label {
+      font-weight: bold;
+      color: #198754;
+      display: inline-block;
+      min-width: 130px;
+    }
+
+    .camera-icon {
+      font-size: 80px;
+      color: #198754;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-wrapper">
+    <div class="container-fluid">
+      <h4 class="text-center mb-2 mt-2">📱 Scanner DNI & QR</h4>
+      <p class="text-center text-muted small mb-2">Escanea DNI PDF417 y códigos QR</p>
+
+      <div id="instruction" class="text-center instruction-text">
+        <strong>Para DNI:</strong> Coloca el código PDF417 horizontal y a 15-20cm<br>
+        <small class="text-muted">El scanner necesita buena luz y estabilidad</small>
+      </div>
+
+      <div id="scanner-container" class="scanner-wrapper">
+        <video id="video" playsinline></video>
+      </div>
+
+      <div class="text-center" id="icon-container">
+        <div class="camera-icon">📷</div>
+      </div>
+
+      <div class="text-center mt-3">
+        <button id="start-btn" class="btn btn-success btn-lg w-100 shadow-sm">
+          🚀 INICIAR ESCÁNER
+        </button>
+        <button id="stop-btn" class="btn btn-danger w-100 mt-2" style="display:none">
+          ⏹️ DETENER CÁMARA
+        </button>
+        <div id="scan-status" class="status-badge bg-success text-white" style="display:none">
+          🔍 Escaneando...
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4 text-center">
+      <small class="text-muted" style="font-size: 0.7rem;">v4.0.0 ZXing Universal</small>
+    </div>
+  </div>
+
+  <script>
+    const ZXing = window.ZXing;
+    let codeReader = null;
+    let selectedDeviceId = null;
+    let isScanning = false;
+
+    // Mostrar contenido crudo
+    function mostrarContenido(texto) {
+      const esURL = texto.startsWith('http://') || texto.startsWith('https://');
+      
+      let html = `<div class="qr-data" style="white-space: pre-wrap; word-break: break-all;">${texto}</div>`;
+      
+      if (esURL) {
+        html += `<div class="mt-3 text-center">
+          <a href="${texto}" target="_blank" class="btn btn-primary btn-sm">
+            🔗 Abrir enlace
+          </a>
+        </div>`;
+      }
+
+      Swal.fire({
+        title: '📱 Código Escaneado',
+        html: html,
+        icon: 'success',
+        confirmButtonText: 'Cerrar',
+        width: '90%'
+      });
+    }
+
+    // Iniciar escáner
+    async function startScanner() {
+      const container = document.getElementById('scanner-container');
+      const iconContainer = document.getElementById('icon-container');
+      const startBtn = document.getElementById('start-btn');
+      const stopBtn = document.getElementById('stop-btn');
+      const statusBadge = document.getElementById('scan-status');
+      const instruction = document.getElementById('instruction');
+
+      container.style.display = 'block';
+      iconContainer.style.display = 'none';
+      startBtn.style.display = 'none';
+      stopBtn.style.display = 'block';
+      statusBadge.style.display = 'inline-block';
+      instruction.innerHTML = "<strong>Coloca el código horizontal</strong><br><small>Mantén el DNI quieto y bien iluminado</small>";
+      isScanning = true;
+
+      try {
+        // Configurar hints para múltiples formatos CON PDF417 PRIORITARIO
+        const hints = new Map();
+        const formats = [
+          ZXing.BarcodeFormat.PDF_417,
+          ZXing.BarcodeFormat.QR_CODE,
+          ZXing.BarcodeFormat.DATA_MATRIX,
+          ZXing.BarcodeFormat.AZTEC,
+          ZXing.BarcodeFormat.CODE_128,
+          ZXing.BarcodeFormat.CODE_39
+        ];
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+        hints.set(ZXing.DecodeHintType.ASSUME_GS1, false);
+
+        // Crear reader
+        codeReader = new ZXing.BrowserMultiFormatReader(hints);
+
+        // Obtener dispositivos de video
+        const videoInputDevices = await codeReader.listVideoInputDevices();
+        
+        if (videoInputDevices.length === 0) {
+          throw new Error('No se encontraron cámaras');
+        }
+
+        // Usar la cámara trasera si está disponible
+        selectedDeviceId = videoInputDevices.find(device => 
+          device.label.toLowerCase().includes('back') ||
+          device.label.toLowerCase().includes('rear') ||
+          device.label.toLowerCase().includes('trasera')
+        )?.deviceId || videoInputDevices[0].deviceId;
+
+        console.log('Usando cámara:', videoInputDevices.find(d => d.deviceId === selectedDeviceId)?.label);
+
+        // Constraints optimizadas para PDF417 (necesita ALTA resolución)
+        const constraints = {
+          video: {
+            deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
+            facingMode: 'environment',
+            width: { ideal: 1920, min: 1280 },
+            height: { ideal: 1080, min: 720 },
+            focusMode: 'continuous',
+            zoom: true
+          }
+        };
+
+        // Iniciar decodificación con constraints mejoradas
+        codeReader.decodeFromConstraints(
+          constraints,
+          'video',
+          (result, error) => {
+            if (result && isScanning) {
+              onScanSuccess(result.text, result.format);
+            }
+            if (error && error.name !== 'NotFoundException') {
+              console.error('Error:', error);
+            }
+          }
+        ).then(() => {
+          // Intentar aplicar zoom después de iniciar
+          const videoElement = document.getElementById('video');
+          if (videoElement && videoElement.srcObject) {
+            const track = videoElement.srcObject.getVideoTracks()[0];
+            const capabilities = track.getCapabilities();
+            
+            if (capabilities.zoom) {
+              const maxZoom = capabilities.zoom.max;
+              const targetZoom = Math.min(2.0, maxZoom);
+              track.applyConstraints({
+                advanced: [{ zoom: targetZoom }]
+              }).then(() => {
+                console.log(`Zoom aplicado: ${targetZoom}x`);
+                statusBadge.textContent = `🔍 Zoom ${targetZoom}x activo`;
+                statusBadge.className = 'status-badge bg-warning text-dark';
+              }).catch(e => console.log('Zoom no disponible:', e));
+            }
+          }
+        });
+
+      } catch (err) {
+        console.error("Error iniciando cámara:", err);
+        Swal.fire({
+          title: 'Error',
+          text: 'No se pudo acceder a la cámara. Verifica los permisos.',
+          icon: 'error'
+        });
+        resetUI();
+      }
+    }
+
+    // Callback cuando se detecta un código
+    function onScanSuccess(text, format) {
+      console.log('Código detectado:', format, text);
+      
+      stopScanner();
+      
+      // Mostrar contenido crudo sin procesar
+      mostrarContenido(text);
+    }
+
+    // Detener escáner
+    function stopScanner() {
+      isScanning = false;
+      
+      if (codeReader) {
+        codeReader.reset();
+        codeReader = null;
+      }
+      
+      resetUI();
+    }
+
+    // Reset UI
+    function resetUI() {
+      document.getElementById('scanner-container').style.display = 'none';
+      document.getElementById('icon-container').style.display = 'block';
+      document.getElementById('start-btn').style.display = 'block';
+      document.getElementById('stop-btn').style.display = 'none';
+      document.getElementById('scan-status').style.display = 'none';
+      document.getElementById('instruction').innerHTML = "<strong>Para DNI:</strong> Coloca el código PDF417 horizontal y a 15-20cm<br><small class='text-muted'>El scanner necesita buena luz y estabilidad</small>";
+    }
+
+    // Event listeners
+    document.getElementById('start-btn').addEventListener('click', startScanner);
+    document.getElementById('stop-btn').addEventListener('click', stopScanner);
+
+    // Limpiar al salir
+    window.addEventListener('beforeunload', stopScanner);
+  </script>
+</body>
+
+</html>
