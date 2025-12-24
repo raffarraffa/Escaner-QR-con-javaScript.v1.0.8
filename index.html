@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ARCA QR Scanner</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="assets/plugins/qrCode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    .canvas-container {
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    #qr-canvas {
+      width: 100% !important;
+      height: auto !important;
+      display: block;
+    }
+
+    .camera-selector {
+      display: none;
+      margin-bottom: 15px;
+    }
+
+    .camera-btn {
+      margin: 2px;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-4">
+    <div class="row justify-content-center">
+      <div class="col-md-6">
+        <h5 class="text-center mb-3">Escanear código QR</h5>
+
+        <!-- Selector de cámaras -->
+        <div id="cameraSelector" class="camera-selector">
+          <label class="form-label">Seleccionar cámara:</label>
+          <div id="cameraList" class="d-flex flex-wrap"></div>
+        </div>
+
+        <!-- Canvas para QR -->
+        <div class="canvas-container">
+          <canvas hidden id="qr-canvas"></canvas>
+        </div>
+
+        <!-- Imagen inicial -->
+        <div class="text-center">
+          <a id="btn-scan-qr" href="#">
+            <img src="./assets/icons/qr.png" class="img-fluid" width="115" height="75">
+          </a>
+        </div>
+
+        <!-- Botones -->
+        <div class="text-center mt-3">
+          <button class="btn btn-success btn-sm" onclick="encenderCamara()">Escanear QR</button>
+          <button class="btn btn-danger btn-sm" onclick="cerrarCamara()">Apagar cámara</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <footer>version 1.1.1</footer>
+
+  <script>
+    // ========== VARIABLES GLOBALES ==========
+    const video = document.createElement("video");
+    const canvasElement = document.getElementById("qr-canvas");
+    const canvas = canvasElement.getContext("2d", { willReadFrequently: true });
+    const btnScanQR = document.getElementById("btn-scan-qr");
+
+    let scanning = false;
+    let animationFrameId = null;
+    let scanTimeoutId = null;
+    let videoStream = null;
+    let cameras = [];
+    let currentCameraId = null;
+
+    // ========== CONFIGURACIÓN ==========
+    const SCAN_CONFIG = {
+      scanInterval: 50,
+      maxScanTime: 30000,
+    };
+
+    // ========== FUNCIONES DE CÁMARA ==========
+
+    // Listar todas las cámaras disponibles
+    async function listarCamaras() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        cameras = devices.filter(device => device.kind === 'videoinput');
+
+        console.log('Cámaras encontradas:', cameras);
+
+        // Mostrar selector si hay múltiples cámaras
+        if (cameras.length > 1) {
+          mostrarSelectorCamaras();
+        }
+
+        return cameras;
+      } catch (error) {
+        console.error('Error al listar cámaras:', error);
+        return [];
+      }
+    }
+
+    // Mostrar selector de cámaras
+    function mostrarSelectorCamaras() {
+      const cameraList = document.getElementById('cameraList');
+      const cameraSelector = document.getElementById('cameraSelector');
+
+      cameraList.innerHTML = '';
+      cameraSelector.style.display = 'block';
+
+      cameras.forEach((camera, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-outline-primary btn-sm camera-btn';
+        button.textContent = `Cámara ${index + 1}`;
+        button.onclick = () => cambiarCamara(camera.deviceId);
+
+        if (camera.deviceId === currentCameraId) {
+          button.classList.add('active');
+        }
+
+        cameraList.appendChild(button);
+      });
+    }
+
+    // Cambiar a una cámara específica
+    async function cambiarCamara(deviceId) {
+      if (!deviceId) return;
+
+      try {
+        // Cerrar cámara actual
+        if (videoStream) {
+          videoStream.getTracks().forEach(track => track.stop());
+        }
+        detenerProcesos();
+
+        // Configurar nueva cámara
+        const constraints = {
+          video: {
+            deviceId: { exact: deviceId },
+            width: { ideal: 2560 },
+            height: { ideal: 1440 },
+            facingMode: "environment"
+          }
+        };
+
+        videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+        currentCameraId = deviceId;
+
+        // Actualizar UI
+        document.querySelectorAll('.camera-btn').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+
+        // Configurar video
+        video.srcObject = videoStream;
+        video.setAttribute("playsinline", "true");
+        await video.play();
+
+        // Reanudar escaneo
+        scanning = true;
+        canvasElement.hidden = false;
+        iniciarEscaneo();
+
+        console.log('Cambiado a cámara:', deviceId);
+
+      } catch (error) {
+        console.error('Error al cambiar cámara:', error);
+        alert('No se pudo cambiar a esta cámara: ' + error.message);
+      }
+    }
+
+    // ========== FUNCIÓN PRINCIPAL ORIGINAL MEJORADA ==========
+    async function encenderCamara() {
+      try {
+        // Limpiar estado anterior
+        detenerProcesos();
+        if (videoStream) {
+          videoStream.getTracks().forEach(track => track.stop());
+          videoStream = null;
+        }
+
+        // Listar cámaras disponibles
+        await listarCamaras();
+
+        let constraints;
+
+        // Si ya hay una cámara seleccionada, usarla
+        if (currentCameraId) {
+          constraints = {
+            video: {
+              deviceId: { exact: currentCameraId },
+              width: { ideal: 2560 },
+              height: { ideal: 1440 }
+            }
+          };
+        } else {
+          // Usar configuración por defecto (cámara trasera)
+          constraints = {
+            video: {
+              facingMode: "environment",
+              width: { ideal: 2560 },
+              height: { ideal: 1440 }
+            }
+          };
+        }
+
+        // Obtener cámara
+        videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+        // Guardar ID de cámara actual
+        const videoTrack = videoStream.getVideoTracks()[0];
+        currentCameraId = videoTrack.getSettings().deviceId;
+
+        // Configurar interfaz
+        scanning = true;
+        canvasElement.hidden = false;
+        btnScanQR.style.display = 'none';
+
+        // Configurar video
+        video.srcObject = videoStream;
+        video.setAttribute("playsinline", "true");
+        await video.play();
+
+        // Iniciar escaneo
+        iniciarEscaneo();
+
+      } catch (error) {
+        console.error("Error al acceder a la cámara:", error);
+
+        // Fallback simple
+        try {
+          videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          scanning = true;
+          canvasElement.hidden = false;
+          btnScanQR.style.display = 'none';
+          video.srcObject = videoStream;
+          await video.play();
+          iniciarEscaneo();
+        } catch (fallbackError) {
+          alert("No se pudo acceder a la cámara: " + fallbackError.message);
+        }
+      }
+    }
+
+    // ========== FUNCIONES DE ESCANEO (TUS ORIGINALES) ==========
+    function tick() {
+      if (!scanning || video.readyState !== video.HAVE_ENOUGH_DATA) {
+        animationFrameId = requestAnimationFrame(tick);
+        return;
+      }
+
+      canvasElement.width = video.videoWidth;
+      canvasElement.height = video.videoHeight;
+      canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+
+      if (scanning) {
+        animationFrameId = requestAnimationFrame(tick);
+      }
+    }
+
+    function scan() {
+      if (!scanning) return;
+
+      try {
+        qrcode.decode();
+      } catch (e) {
+        scanTimeoutId = setTimeout(scan, SCAN_CONFIG.scanInterval);
+      }
+    }
+
+    function iniciarEscaneo() {
+      tick();
+      scan();
+
+      setTimeout(() => {
+        if (scanning) {
+          console.warn("Escaneo automático detenido por timeout");
+          cerrarCamara();
+        }
+      }, SCAN_CONFIG.maxScanTime);
+    }
+
+    function detenerProcesos() {
+      scanning = false;
+
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+
+      if (scanTimeoutId) {
+        clearTimeout(scanTimeoutId);
+        scanTimeoutId = null;
+      }
+    }
+
+    function cerrarCamara() {
+      scanning = false;
+      //detenerProcesos();
+
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+      }
+
+      video.srcObject = null;
+      canvasElement.hidden = true;
+      btnScanQR.style.display = 'block';
+
+      // Ocultar selector de cámaras
+      document.getElementById('cameraSelector').style.display = 'none';
+    }
+
+    // ========== CALLBACK QR (TU CÓDIGO ORIGINAL) ==========
+    qrcode.callback = (respuesta) => {
+      if (respuesta && scanning) {
+        scanning = false;
+
+        if (respuesta.includes('https://www.arca.gob.ar/fe/qr/') ||
+          respuesta.includes('https://fe.arca.gob.ar/qr/') ||
+          respuesta.includes('https://www.afip.gob.ar/fe/qr/')) {
+          try {
+            const url = new URL(respuesta);
+            const parametroP = url.searchParams.get('p');
+
+            if (parametroP) {
+              const datosDecodificados = JSON.parse(atob(parametroP));
+
+              Swal.fire({
+                title: 'QR Válido',
+                html: `
+                  <div style="background: #f5f5f5; padding: 5px; border-radius: 5px; text-align:left;">
+                    <p>Factura: ${datosDecodificados.ptoVta.toString().padStart(5, '0')} - ${datosDecodificados.nroCmp.toString().padStart(8, '0')}</p>
+                    <p>CAE: ${datosDecodificados.codAut}</p>
+                    <p>Fecha: ${datosDecodificados.fecha}</p>
+                    <p>Cuit: ${datosDecodificados.cuit}</p>
+                    <p>Monto: $ ${datosDecodificados.importe}</p>
+                  </div>
+                `,
+                icon: 'success'
+              });
+            } else {
+              throw new Error('No se encontró parámetro p');
+            }
+          } catch (error) {
+            Swal.fire('Error', 'QR inválido: ' + error.message, 'error');
+          }
+        } else {
+          Swal.fire('Error', 'El QR no es de ARCA', 'error');
+        }
+
+        //cerrarCamara();
+      }
+    };
+
+    // Inicializar al cargar
+    window.addEventListener('load', function () {
+      console.log('Aplicación cargada');
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#198754" />
+
+  <title>ARCA QR Scanner</title>
+
+  <!-- Manifest -->
+  <link rel="manifest" href="./manifest.json" />
+
+  <!-- Icons (fallback) -->
+  <link rel="icon" href="assets/icons/favicon.svg" />
+
+  <!-- CDN CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+  <script src="assets/plugins/qrCode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    #installBtnContainer {
+      position: relative;
+    }
+
+    footer {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 0.7rem;
+    }
+
+    #installBtn {
+      position: fixed;
+      top: 5px;
+      right: 5px;
+      z-index: 9999;
+    }
+
+    .canvas-container {
+      width: 80%;
+      max-width: 400px;
+      margin: 0 auto;
+      /* position: relative; */
+    }
+
+    #qr-canvas {
+      width: 100% !important;
+      height: auto !important;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      display: block;
+    }
+
+    /* Para móviles en orientación vertical */
+    /* @media (max-width: 768px) and (orientation: portrait) {
+      .canvas-container {
+        max-width: 500px;
+      }
+    }
+
+    /* Para móviles en orientación horizontal */
+    @media (max-width: 768px) and (orientation: landscape) {
+      .canvas-container {
+        max-width: 300px;
+      }
+    }
+
+    .camera-btn.active {
+      font-weight: bold;
+    }
+
+    #camera-selector {
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="installBtnContainer">
+    <button id="installBtn" hidden class="btn btn-success">Instalar App</button>
+  </div>
+  <div class="row justify-content-center mt-5">
+    <div class="col shadow p-3">
+      <h5 class="text-center">Escanear codigo QR</h5>
+      <div class="row text-center">
+        <a id="btn-scan-qr" href="#">
+          <img src="https://dab1nmslvvntp.cloudfront.net/wp-content/uploads/2017/07/1499401426qr_icon.svg"
+            class="img-fluid text-center" width="115" height="75">
+        </a>
+        <!-- <canvas hidden="" id="qr-canvas" class="img-fluid mx-auto d-block"></canvas> -->
+        <div class="canvas-container mt-3">
+          <canvas hidden id="qr-canvas"></canvas>
+        </div>
+      </div>
+      <div class="row mx-5 my-3">
+        <button class="btn btn-success btn-sm rounded-3 mb-2" onclick="encenderCamara()">Escanear QR</button>
+        <button class="btn btn-danger btn-sm rounded-3 mb-2" onclick="cerrarCamara()">Apagar camara</button>
+        <!-- <button class="btn btn-danger btn-sm rounded-3" onclick="verDataQr()">Ver Datos Qr 2</button> -->
+      </div>
+    </div>
+  </div>
+  <!-- <div id="resultado"></div> -->
+  <audio id="audioScaner" src="assets/sonido.mp3"></audio>
+  <footer>
+    <span>version 1.0.6</span>
+  </footer>
+  <script src="assets/js/index.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('assets/js/ws.js')
+          .then(reg => {
+            console.log('ServiceWorker registrado:', reg.scope);
+          })
+          .catch(err => {
+            console.warn('ServiceWorker fallo:', err);
+          });
+      });
+    }
+  </script>
+  <script>
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.hidden = false;
+    });
+
+    installBtn.addEventListener('click', async () => {
+      installBtn.hidden = true;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log('User response:', outcome);
+      deferredPrompt = null;
+    });
+  </script>
+  <!-- DEBUG CONSOLE -->
+<div id="debugConsole" style="position: fixed; top: 50px; left: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px; border-radius: 5px; z-index: 10000; max-width: 300px; display: none;">
+  <h6>Debug Console</h6>
+  <div id="debugLog" style="font-size: 12px; max-height: 200px; overflow-y: auto;"></div>
+  <button onclick="document.getElementById('debugConsole').style.display='none'" class="btn btn-sm btn-danger mt-2">Cerrar</button>
+</div>
+
+<script>
+// Función global para debug
+function debugLog(message) {
+  console.log(message);
+  const debugLog = document.getElementById('debugLog');
+  if (debugLog) {
+    debugLog.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
+    debugLog.scrollTop = debugLog.scrollHeight;
+  }
+}
+
+// Mostrar consola de debug
+document.getElementById('debugConsole').style.display = 'block';
+debugLog('Página cargada - Iniciando debug...');
+</script>
+</body>
+
+</html>
