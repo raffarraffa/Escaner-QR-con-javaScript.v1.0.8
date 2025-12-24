@@ -1,6 +1,3 @@
-console.log('Cargado correctamente');
-debugLog('index.js inicializado');
-
 const video = document.createElement("video");
 const canvasElement = document.getElementById("qr-canvas");
 const canvas = canvasElement.getContext("2d", { willReadFrequently: true });
@@ -35,7 +32,6 @@ const SCAN_CONFIG = {
 };
 
 const detenerProcesos = () => {
-  debugLog('Deteniendo procesos...');
   scanning = false;
 
   if (animationFrameId) {
@@ -50,7 +46,6 @@ const detenerProcesos = () => {
 };
 
 const mostrarError = (mensaje) => {
-  debugLog('ERROR: ' + mensaje);
   Swal.fire({
     title: 'Error',
     text: mensaje,
@@ -59,8 +54,6 @@ const mostrarError = (mensaje) => {
 };
 
 const encenderCamara = async () => {
-  debugLog('🔴 Botón ESCANEAR QR clickeado');
-
   try {
     detenerProcesos();
     if (videoStream) {
@@ -76,19 +69,14 @@ const encenderCamara = async () => {
       }
     };
 
-    debugLog('🎯 Solicitando cámara con constraints...');
-
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     videoStream = stream;
-
-    debugLog('✅ Cámara obtenida exitosamente');
 
     video.srcObject = stream;
     video.setAttribute("playsinline", "true");
 
     await new Promise((resolve, reject) => {
       video.onloadedmetadata = () => {
-        debugLog('📹 Video metadata cargada');
         resolve();
       };
       video.onerror = reject;
@@ -96,22 +84,17 @@ const encenderCamara = async () => {
     });
 
     await video.play();
-    debugLog('🎥 Video reproduciéndose');
 
     scanning = true;
     canvasElement.hidden = false;
     if (btnScanQR) btnScanQR.hidden = true;
 
-    debugLog('🔄 Iniciando escaneo...');
-
     iniciarEscaneo();
 
   } catch (error) {
-    debugLog('❌ Error: ' + error.message);
     console.error("Error al acceder a la cámara:", error);
 
     try {
-      debugLog('🔄 Intentando fallback básico...');
       const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
 
       videoStream = fallbackStream;
@@ -121,10 +104,8 @@ const encenderCamara = async () => {
       video.srcObject = fallbackStream;
       await video.play();
       iniciarEscaneo();
-      debugLog('✅ Fallback exitoso');
 
     } catch (fallbackError) {
-      debugLog('💥 Fallback falló: ' + fallbackError.message);
       mostrarError("No se pudo acceder a la cámara: " + fallbackError.message);
     }
   }
@@ -157,20 +138,17 @@ const scan = () => {
 };
 
 const iniciarEscaneo = () => {
-  debugLog('🔍 Iniciando procesos de escaneo');
   tick();
   scan();
 
   setTimeout(() => {
     if (scanning) {
-      debugLog('⏰ Timeout de escaneo alcanzado');
       cerrarCamara();
     }
   }, SCAN_CONFIG.maxScanTime);
 };
 
 const cerrarCamara = () => {
-  debugLog('🔴 Cerrando cámara...');
   scanning = false;
   detenerProcesos();
 
@@ -185,13 +163,9 @@ const cerrarCamara = () => {
 
   canvasElement.hidden = true;
   if (btnScanQR) btnScanQR.hidden = false;
-
-  debugLog('✅ Cámara cerrada');
 };
 
 qrcode.callback = (respuesta) => {
-  debugLog('📨 QR detectado: ' + (respuesta ? respuesta.substring(0, 50) + '...' : 'null'));
-
   if (respuesta && scanning) {
     scanning = false;
 
@@ -204,7 +178,6 @@ qrcode.callback = (respuesta) => {
 
         if (parametroP) {
           datosDecodificados = JSON.parse(atob(parametroP));
-          debugLog('✅ QR válido decodificado');
 
           Swal.fire({
             title: 'QR Válido',
@@ -223,11 +196,9 @@ qrcode.callback = (respuesta) => {
           throw new Error('No se encontró parámetro p');
         }
       } catch (error) {
-        debugLog('❌ Error decodificando QR: ' + error.message);
         Swal.fire('Error', 'QR inválido: ' + error.message, 'error');
       }
     } else {
-      debugLog('❌ QR no reconocido');
       Swal.fire('Error', 'El código QR no es reconocido', 'error');
     }
 
@@ -236,22 +207,14 @@ qrcode.callback = (respuesta) => {
 };
 
 const inicializarEventos = () => {
-  debugLog('🔧 Inicializando eventos...');
-
   if (btnScanQR) {
     btnScanQR.addEventListener('click', encenderCamara);
-    debugLog('✅ Evento click asignado a btnScanQR');
-  } else {
-    debugLog('❌ btnScanQR no encontrado');
   }
 };
 
 window.addEventListener('load', () => {
-  debugLog('📄 Página completamente cargada');
-
   setTimeout(() => {
     inicializarEventos();
-    debugLog('🏁 Inicialización completada');
   }, 1000);
 });
 
@@ -275,5 +238,3 @@ window.verDataQr = () => {
     alert("No se encontró parámetro p");
   }
 };
-
-debugLog('✅ index.js completamente cargado');

@@ -15,10 +15,9 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
     .canvas-container {
-      width: 80%;
+      width: 100%;
       max-width: 400px;
-      height: 60%;
-      max-height: 200px;
+      height: 120px;
       margin: 0 auto;
       background: #000;
       border-radius: 8px;
@@ -154,7 +153,7 @@
         button.type = 'button';
         button.className = 'btn btn-outline-primary btn-sm camera-btn';
         button.textContent = `Cámara ${index + 1}`;
-        button.onclick = () => cambiarCamara(camera.deviceId);
+        button.onclick = (e) => cambiarCamara(camera.deviceId, e);
 
         if (camera.deviceId === currentCameraId) {
           button.classList.add('active');
@@ -164,7 +163,7 @@
       });
     }
 
-    async function cambiarCamara(deviceId) {
+    async function cambiarCamara(deviceId, event) {
       if (!deviceId) return;
 
       try {
@@ -176,9 +175,8 @@
         const constraints = {
           video: {
             deviceId: { exact: deviceId },
-            width: { ideal: 2560 },
-            height: { ideal: 1440 },
-            facingMode: "environment"
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           }
         };
 
@@ -188,7 +186,10 @@
         document.querySelectorAll('.camera-btn').forEach(btn => {
           btn.classList.remove('active');
         });
-        event.target.classList.add('active');
+
+        if (event && event.target) {
+          event.target.classList.add('active');
+        }
 
         video.srcObject = videoStream;
         video.setAttribute("playsinline", "true");
@@ -198,9 +199,6 @@
         canvasElement.hidden = false;
         scannerLine.hidden = false;
         iniciarEscaneo();
-
-        console.log('Cambiado a cámara:', deviceId);
-
       } catch (error) {
         console.error('Error al cambiar cámara:', error);
         alert('No se pudo cambiar a esta cámara: ' + error.message);
@@ -223,16 +221,16 @@
           constraints = {
             video: {
               deviceId: { exact: currentCameraId },
-              width: { ideal: 2560 },
-              height: { ideal: 1440 }
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
             }
           };
         } else {
           constraints = {
             video: {
               facingMode: "environment",
-              width: { ideal: 2560 },
-              height: { ideal: 1440 }
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
             }
           };
         }
