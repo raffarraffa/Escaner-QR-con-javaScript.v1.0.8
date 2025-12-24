@@ -8,16 +8,16 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <meta name="theme-color" content="#198754">
-  <link rel="manifest" href="manifest.json?v=1.1.7">
+  <link rel="manifest" href="manifest.json?v=2.0.2">
   <title>Validador QR Scanner</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="assets/plugins/qrCode.min.js?v=1.1.3"></script>
+  <script src="assets/plugins/qrCode.min.js?v=2.0.2"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
     .canvas-container {
       width: 100%;
       max-width: 400px;
-      height: 80%px;
+      height: 120px;
       margin: 10px auto;
       background: #000;
       border-radius: 8px;
@@ -117,12 +117,14 @@
       <div class="text-center mt-3">
         <button class="btn btn-success btn-sm" onclick="encenderCamara()">Escanear QR</button>
         <button class="btn btn-danger btn-sm" onclick="cerrarCamara()">Apagar cámara</button>
-        <button id="btnInstall" class="btn btn-primary btn-sm" style="display:none">Instalar App</button>
+        <div class="mt-2">
+          <button id="btnInstall" class="btn btn-primary btn-sm" style="display:none">Instalar App</button>
+        </div>
       </div>
     </div>
 
     <div class="mt-auto text-center py-2">
-      <small class="text-muted" style="font-size: 0.65rem;">version 1.1.7</small>
+      <small class="text-muted" style="font-size: 0.65rem;">version 2.0.2</small>
     </div>
   </div>
 
@@ -199,7 +201,9 @@
         currentCameraId = deviceId;
 
         document.querySelectorAll('.camera-btn').forEach(btn => btn.classList.remove('active'));
-        if (event && event.target) event.target.classList.add('active');
+        if (event && event.target) {
+          event.target.classList.add('active');
+        }
 
         video.srcObject = videoStream;
         video.setAttribute("playsinline", "true");
@@ -347,7 +351,7 @@
 
     window.addEventListener('load', () => {
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js?v=1.1.7')
+        navigator.serviceWorker.register('sw.js?v=2.0.2')
           .then(reg => console.log('SW ok'))
           .catch(err => console.warn('SW error', err));
       }
@@ -361,7 +365,15 @@
       btn.onclick = () => {
         btn.style.display = 'none';
         deferredPrompt.prompt();
-        deferredPrompt = null;
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('User accepted the A2HS prompt');
+          } else {
+            console.log('User dismissed the A2HS prompt');
+            btn.style.display = 'inline-block';
+          }
+          deferredPrompt = null;
+        });
       };
     });
   </script>

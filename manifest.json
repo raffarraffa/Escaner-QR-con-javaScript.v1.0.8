@@ -3,7 +3,7 @@
   "name": "Validador QR Scanner",
   "short_name": "Validador QR",
   "description": "Escanea códigos QR y muestra los datos decodificados.",
-  "start_url": "index.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#198754",
@@ -22,13 +22,13 @@
       "purpose": "maskable"
     },
     {
-      "src": "assets/icons/pwa-512x512.png",
+      "src": "assets/icons/pwa-515x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "assets/icons/pwa-512x512.png",
+      "src": "assets/icons/pwa-515x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
